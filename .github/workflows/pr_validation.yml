@@ -14,3 +14,19 @@ jobs:
         run: yarn install --check-files
       - name: Run tests
         run: yarn test --watchAll=false
+      - name: Build app
+        run: yarn build
+      - name: Deploy preview
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        id: deploy_to_netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: echo "::set-output name=preview_url::$(npx netlify deploy --dir ./build | grep "Website Draft URL" | awk '{print $4}')"
+      - name: Add Comment to PR with the preview URL
+        if: ${{ steps.deploy_to_netlify.outcome == 'success' }}
+        uses: actions-cool/maintain-one-comment@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Preview URL: ${{ steps.deploy_to_netlify.outputs.preview_url }}
